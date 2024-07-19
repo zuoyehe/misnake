@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
         return 1;  
     }  
   
+    // test
     // 创建渲染器  
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);  
     if (renderer == nullptr) {  
