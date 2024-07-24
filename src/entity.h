@@ -4,12 +4,13 @@
 #include <cstdint>
 #include <stdlib.h>
 #include <random> 
+#include <SDL.h>  
 constexpr int16_t WIDTH_BLOCK_COUNT = 50;
 constexpr int16_t HEIGHT_BLOCK_COUNT = 40;
 constexpr int16_t  BLOCK_SIZE = 20;  
 constexpr int16_t WINDOW_WIDTH = WIDTH_BLOCK_COUNT * BLOCK_SIZE;  
 constexpr int16_t WINDOW_HEIGHT = HEIGHT_BLOCK_COUNT * BLOCK_SIZE;  
-constexpr int16_t FIXED_TIME = 80;
+constexpr int16_t FIXED_TIME = 100;
 
 enum class snake_dir
 {
@@ -38,19 +39,6 @@ private:
     int16_t x,y;
 };
 
-class Snake{
-public:
-    Snake();
-    Snake(int16_t length, RandomNumberGenerator &rng);
-    Snake& operator=(Snake &&other);
-    void add_from_head(snake_dir dir);
-    void delete_from_tail();
-    ~Snake();
-    const std::list<blockElement*>& get_snakeList() const;
-private:
-    std::list<blockElement*> snakeBody;
-};
-
 class food_color{
 public:
     food_color() {};
@@ -61,11 +49,11 @@ public:
 const food_color HUAWEI = {225, 0, 10}; 
 const food_color OPPO = {0, 108, 49}; 
 const food_color VIVO = {66, 95, 252}; 
-
+class Snake;
 class Food {
 public:
     Food();
-    Food(RandomNumberGenerator&);
+    Food(const Snake &s, RandomNumberGenerator&);
     Food& operator=(Food &&other);
     ~Food();
     const blockElement* get_foodBlock() const;
@@ -75,4 +63,28 @@ private:
     blockElement* foodBlock;
     food_color fc;
 };
+
+class Snake{
+public:
+    Snake();
+    Snake(int16_t length, RandomNumberGenerator &rng);
+    Snake& operator=(Snake &&other);
+    void snake_move();
+    bool collision_detection(SDL_Renderer* renderer);
+    void snake_eat(Food &f, int16_t &score, RandomNumberGenerator &rng);
+    ~Snake();
+    const std::list<blockElement*>& get_snakeList() const;
+    snake_dir dir;
+private:
+    std::list<blockElement*> snakeBody;
+    void add_from_head();
+    void delete_from_tail();
+};
+
+// 初始化场景
+void initialize(SDL_Renderer*, Snake&, Food&, int16_t&, RandomNumberGenerator&);
+// 绘制场景
+void draw(SDL_Renderer*, const Snake&, const Food&);
+// 游戏结束
+void game_over(SDL_Renderer*);
 #endif

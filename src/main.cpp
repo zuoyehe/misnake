@@ -1,22 +1,7 @@
 #include <iostream>
-#include <SDL.h>  
 #include <SDL_ttf.h>
 #include "entity.h"
 
-
-// 初始化场景
-void initialize(SDL_Renderer*, Snake&, Food&, int16_t&, snake_dir&, RandomNumberGenerator&);
-// 绘制场景
-void draw(SDL_Renderer*, const Snake&, const Food&);
-// 蛇移动
-void snake_move(Snake&, const snake_dir&);
-// 碰撞检测
-bool collision_detection(const Snake&, SDL_Renderer*);
-// 蛇吃食物
-void snake_eat(Snake&, Food&, int16_t&, const snake_dir&, RandomNumberGenerator &rng);
-// 死亡
-void game_over(SDL_Renderer*);
-  
 int main(int argc, char* argv[]) {  
     // 初始化SDL  
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {  
@@ -53,17 +38,16 @@ int main(int argc, char* argv[]) {
     Snake s{};
     // 食物
     Food f{};
-    // 方向
-    snake_dir dir = snake_dir::DIR_RIGHT;
     // 随机数生成器
     RandomNumberGenerator rng;
     // 计时器
     Uint32 timer=0;
 
-    initialize(renderer, s, f, score, dir, rng);
+    initialize(renderer, s, f, score, rng);
     /* Main Loop */
     bool quit = false;
     SDL_Event event;
+    bool dirchanged = false;
     while (!quit) 
     {
         while (SDL_PollEvent(&event)) 
@@ -72,21 +56,25 @@ int main(int argc, char* argv[]) {
             {
                 #define KEY event.key.keysym.sym
                 case SDL_KEYDOWN:
-                    if (KEY == SDLK_w && dir != snake_dir::DIR_DOWN)
+                    if (KEY == SDLK_w && s.dir != snake_dir::DIR_DOWN && !dirchanged)
                     {
-                        dir = snake_dir::DIR_UP;
+                        s.dir = snake_dir::DIR_UP;
+                        dirchanged = true;
                     }
-                    else if (KEY == SDLK_s && dir != snake_dir::DIR_UP)
+                    else if (KEY == SDLK_s && s.dir != snake_dir::DIR_UP && !dirchanged)
                     {
-                        dir = snake_dir::DIR_DOWN;
+                        s.dir = snake_dir::DIR_DOWN;
+                        dirchanged = true;
                     }
-                    else if (KEY == SDLK_a && dir != snake_dir::DIR_RIGHT)
+                    else if (KEY == SDLK_a && s.dir != snake_dir::DIR_RIGHT && !dirchanged)
                     {
-                        dir = snake_dir::DIR_LEFT;
+                        s.dir = snake_dir::DIR_LEFT;
+                        dirchanged = true;
                     }
-                    else if (KEY == SDLK_d && dir != snake_dir::DIR_LEFT)
+                    else if (KEY == SDLK_d && s.dir != snake_dir::DIR_LEFT && !dirchanged)
                     {
-                        dir = snake_dir::DIR_RIGHT;
+                        s.dir = snake_dir::DIR_RIGHT;
+                        dirchanged = true;
                     }
                 #undef KEY
                     break;
@@ -102,9 +90,10 @@ int main(int argc, char* argv[]) {
         if (SDL_GetTicks() - timer > FIXED_TIME)/* 如果超过了 */
         {
             draw(renderer, s, f);
-            snake_move(s, dir);
-            if(!collision_detection(s, renderer)) {
-                snake_eat(s, f, score, dir, rng);
+            s.snake_move();
+            dirchanged = false;
+            if(!s.collision_detection(renderer)) {
+                s.snake_eat(f, score, rng);
                 /* 重新计时 */
                 timer = SDL_GetTicks();
             } else {
@@ -145,38 +134,11 @@ void draw(SDL_Renderer* renderer, const Snake &s, const Food &f) {
     SDL_RenderPresent(renderer);
 }
 
-void initialize(SDL_Renderer* renderer, Snake &snake, Food &food, int16_t &score, snake_dir &dir, RandomNumberGenerator &rng) {
+void initialize(SDL_Renderer* renderer, Snake &snake, Food &food, int16_t &score, RandomNumberGenerator &rng) {
     score = 0;
-    dir = snake_dir::DIR_RIGHT;
     snake = std::move(Snake(4, rng));
-    food = std::move(Food(rng));
+    food = std::move(Food(snake, rng));
     draw(renderer, snake, food);
-}
-
-void snake_move(Snake& snake, const snake_dir &dir) {
-    snake.add_from_head(dir);
-    snake.delete_from_tail();
-}
-
-bool collision_detection(const Snake& snake, SDL_Renderer* renderer) {
-    auto snakeBody = snake.get_snakeList();
-    if(snakeBody.empty()) {
-        return true;
-    }
-    // 碰到边界
-    if(snakeBody.front()->get_x() >= WIDTH_BLOCK_COUNT || snakeBody.front()->get_x() < 0 
-        || snakeBody.front()->get_y() >= HEIGHT_BLOCK_COUNT || snakeBody.front()->get_y() < 0) {
-        game_over(renderer);
-        return true;
-    }
-    // 碰到自身
-    for(auto it = (++snakeBody.begin()); it != snakeBody.end(); ++it) {
-        if(snakeBody.front()->get_x() == (*it)->get_x() && snakeBody.front()->get_y() == (*it)->get_y()) {
-            game_over(renderer);
-            return true;
-        }
-    }
-    return false;
 }
 
 void game_over(SDL_Renderer* renderer) {
@@ -185,7 +147,7 @@ void game_over(SDL_Renderer* renderer) {
     // 清屏
     SDL_RenderClear(renderer);
     // 打开字体资源
-    TTF_Font* font = TTF_OpenFont("/home/gaoyuan28/snake/res/ttf/UbuntuMono-R.ttf", 52);  
+    TTF_Font* font = TTF_OpenFont("/home/gaoyuan28/misnake/res/ttf/UbuntuMono-R.ttf", 52);  
     if(!font) {
         std::cout <<  "TTF could not open font! SDL_Error: " << TTF_GetError() << std::endl;  
         return;  
@@ -224,16 +186,4 @@ void game_over(SDL_Renderer* renderer) {
     TTF_CloseFont(font);  //释放字体资源
     SDL_DestroyTexture(textTexture);  
     SDL_FreeSurface(textSurface);
-}
-
-void snake_eat(Snake &snake, Food &food, int16_t &score, const snake_dir &dir, RandomNumberGenerator &rng) {
-    auto snakeBody = snake.get_snakeList();
-    if(snakeBody.empty()) {
-        return;
-    }
-    if(snakeBody.front()->get_x() == food.get_foodBlock()->get_x() && snakeBody.front()->get_y() == food.get_foodBlock()->get_y()) {
-        snake.add_from_head(dir);
-        food = std::move(Food(rng));
-        score += 10;
-    }
 }
