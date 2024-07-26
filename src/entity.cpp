@@ -106,7 +106,7 @@ void Snake::snake_eat(Food &food, int16_t &score, RandomNumberGenerator &rng) {
 
 
 Snake::~Snake() {
-    for (auto it = snakeBody.begin(); it != snakeBody.end(); ++it) {
+    for (auto it = snakeBody.cbegin(); it != snakeBody.end(); ++it) {
         delete *it;
     }
 }
